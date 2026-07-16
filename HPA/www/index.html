@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>K8s Performance Test</title>
+    <style>
+        body { margin: 0; overflow: hidden; background: #0a0a0c; font-family: 'Segoe UI', sans-serif; }
+        canvas { display: block; }
+        .overlay {
+            position: absolute; top: 50%; left: 50%;
+            transform: translate(-50%, -50%);
+            text-align: center; color: white;
+            pointer-events: none; text-shadow: 0 0 20px rgba(0,255,255,0.5);
+        }
+        h1 { font-size: 4rem; letter-spacing: 10px; margin: 0; }
+        p { font-size: 1.2rem; opacity: 0.7; }
+    </style>
+</head>
+<body>
+    <div class="overlay">
+        <h1>K8S CLUSTER</h1>
+        <p>Testing Scalability & Ingress</p>
+    </div>
+    <canvas id="canvas"></canvas>
+
+    <script>
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
+        let particles = [];
+
+        function resize() {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+        }
+        window.addEventListener('resize', resize);
+        resize();
+
+        class Particle {
+            constructor() {
+                this.x = Math.random() * canvas.width;
+                this.y = Math.random() * canvas.height;
+                this.size = Math.random() * 3 + 1;
+                this.speedX = Math.random() * 3 - 1.5;
+                this.speedY = Math.random() * 3 - 1.5;
+                this.color = `hsla(${Math.random() * 360}, 70%, 60%, 0.8)`;
+            }
+            update() {
+                this.x += this.speedX;
+                this.y += this.speedY;
+                if (this.x > canvas.width) this.x = 0;
+                if (this.x < 0) this.x = canvas.width;
+                if (this.y > canvas.height) this.y = 0;
+                if (this.y < 0) this.y = canvas.height;
+            }
+            draw() {
+                ctx.fillStyle = this.color;
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
+                ctx.fill();
+            }
+        }
+
+        function init() {
+            for (let i = 0; i < 500; i++) {
+                particles.push(new Particle());
+            }
+        }
+
+        function animate() {
+            ctx.fillStyle = 'rgba(10, 10, 12, 0.1)';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            particles.forEach(p => {
+                p.update();
+                p.draw();
+            });
+            requestAnimationFrame(animate);
+        }
+
+        init();
+        animate();
+    </script>
+</body>
+</html>

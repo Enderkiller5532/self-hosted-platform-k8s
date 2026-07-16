@@ -1,0 +1,246 @@
+apiVersion: v1
+kind: Secret
+metadata:
+  name: testforenv
+data:
+  ENVTEST: RW52V29ya3NGaW5lCg==
+---
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: pv-web-site
+spec:
+  capacity:
+    storage: 1Gi
+  volumeMode: Filesystem
+  accessModes:
+    - ReadWriteOnce
+  persistentVolumeReclaimPolicy: Recycle
+  mountOptions:
+    - hard
+    - nfsvers=4.1
+  nfs:
+    path: /mnt/data/nginx/www/
+    server: IP_PLACEHOLDER
+---
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: pv-nginx-settings
+spec:
+  capacity:
+    storage: 1Gi
+  volumeMode: Filesystem
+  accessModes:
+    - ReadWriteOnce
+  persistentVolumeReclaimPolicy: Recycle
+  mountOptions:
+    - hard
+    - nfsvers=4.1
+  nfs:
+    path: /mnt/data/nginx/conf.d/
+    server: IP_PLACEHOLDER
+---
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: pv-nginx-sites
+spec:
+  capacity:
+    storage: 1Gi
+  volumeMode: Filesystem
+  accessModes:
+    - ReadWriteOnce
+  persistentVolumeReclaimPolicy: Recycle
+  mountOptions:
+    - hard
+    - nfsvers=4.1
+  nfs:
+    path: /mnt/data/nginx/sites/
+    server: IP_PLACEHOLDER
+---
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: pv-nginx-logs
+spec:
+  capacity:
+    storage: 1Gi
+  volumeMode: Filesystem
+  accessModes:
+    - ReadWriteOnce
+  persistentVolumeReclaimPolicy: Recycle
+  mountOptions:
+    - hard
+    - nfsvers=4.1
+  nfs:
+    path: /mnt/data/nginx/logs/
+    server: IP_PLACEHOLDER
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: nfs-pvc-web
+spec:
+  resources:
+    requests:
+      storage: 1Gi
+  volumeMode: Filesystem
+  accessModes:
+    - ReadWriteOnce
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: nfs-pvc-configs
+spec:
+  resources:
+    requests:
+      storage: 1Gi
+  volumeMode: Filesystem
+  accessModes:
+    - ReadWriteOnce
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: nfs-pvc-sites
+spec:
+  resources:
+    requests:
+      storage: 1Gi
+  volumeMode: Filesystem
+  accessModes:
+    - ReadWriteOnce
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: nfs-pvc-logs
+spec:
+  resources:
+    requests:
+      storage: 1Gi
+  volumeMode: Filesystem
+  accessModes:
+    - ReadWriteOnce
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: test-pods
+spec:
+  selector:
+    app: test-pods
+  type: ClusterIP
+  sessionAffinity: None
+  sessionAffinityConfig:
+    clientIP:
+      timeoutSeconds: 10800
+  ports:
+  - name: test-pods
+    protocol: TCP
+    port: 80
+    targetPort: 80
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: nginx-deployment
+  labels:
+    app: test-pods
+spec:
+  selector:
+    matchLabels:
+      app: test-pods
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 1
+  template:
+    metadata:
+      labels:
+        app: test-pods
+    spec:
+      containers:
+      - name: test-pods
+        image: nginx:stable-bookworm
+        resources:
+          requests:
+            cpu: "100m"
+            memory: "55Mi" 
+          limits:
+            cpu: "200m"
+            memory: "128Mi"
+        env:
+        - name: test-for-env
+          valueFrom:
+            secretKeyRef:
+              name: testforenv
+              key: ENVTEST
+        ports:
+        - containerPort: 80
+          name: nginx-http
+        - containerPort: 443
+          name: nginx-https
+        volumeMounts:
+        - name: web-site
+          mountPath: /var/www/html/
+        - name: nginx-settings
+          mountPath: /etc/nginx/conf.d/
+        - name: nginx-sites
+          mountPath: /etc/nginx/sites-enabled/
+        - name: nginx-logs
+          mountPath: /var/log/nginx/
+      volumes:
+      - name: web-site
+        persistentVolumeClaim:
+          claimName: nfs-pvc-web
+      - name: nginx-settings
+        persistentVolumeClaim:
+          claimName: nfs-pvc-configs
+      - name: nginx-sites
+        persistentVolumeClaim:
+          claimName: nfs-pvc-sites
+      - name: nginx-logs
+        persistentVolumeClaim:
+          claimName: nfs-pvc-logs
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: test-pods
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: nginx-deployment
+  minReplicas: 1
+  maxReplicas: 3
+  metrics:
+  - type: Resource
+    resource:
+      name: memory
+      target:
+        type: Utilization
+        averageUtilization: 60
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: hpa-nginx-test
+  namespace: default
+spec:
+  ingressClassName: nginx
+  rules:
+  - host: icant.use.it
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: test-pods
+            port:
+              number: 80

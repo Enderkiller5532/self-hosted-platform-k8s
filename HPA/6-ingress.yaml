@@ -1,0 +1,18 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: hpa-nginx-test
+  namespace: default
+spec:
+  ingressClassName: nginx
+  rules:
+  - host: hpa.cluster.local
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: test-pods
+            port:
+              number: 80

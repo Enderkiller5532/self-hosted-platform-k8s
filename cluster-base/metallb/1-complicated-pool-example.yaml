@@ -1,0 +1,20 @@
+apiVersion: metallb.io/v1beta1
+kind: IPAddressPool
+metadata:
+  name: ippool-ns-service-alloc-sample
+  namespace: metallb-system
+spec:
+  addresses:
+    - IP_PLACEHOLDER/24
+  avoidBuggyIPs: true
+  serviceAllocation:
+    priority: 50
+    namespaces:
+      - namespace-a
+      - namespace-b
+    namespaceSelectors:
+      - matchLabels:
+          foo: bar
+    serviceSelectors:
+      - matchExpressions:
+          - {key: app, operator: In, values: [bar]}

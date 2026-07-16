@@ -1,0 +1,17 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: test-pods
+spec:
+  selector:
+    app: test-pods
+  type: ClusterIP
+  sessionAffinity: None
+  sessionAffinityConfig:
+    clientIP:
+      timeoutSeconds: 10800
+  ports:
+  - name: test-pods
+    protocol: TCP
+    port: 80
+    targetPort: 80

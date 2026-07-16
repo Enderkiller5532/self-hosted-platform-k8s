@@ -1,0 +1,76 @@
+global:
+  hosts:
+    domain: cluster.local
+    https: false
+    gitlab:
+      name: gitlab.cluster.local
+    registry:
+      name: gitlab-registry.cluster.local
+
+  gatewayApi:
+    enabled: false
+
+  ingress:
+    enabled: true
+    provider: nginx
+    class: nginx
+    configureCertmanager: false
+
+  psql:
+    host: postgresql.gitlab.svc.cluster.local
+    port: 5432
+    username: gitlab
+    database: gitlabhq_production
+    password:
+      secret: gitlab-psql-password
+      key: password
+
+  redis:
+    host: redis-master.gitlab.svc.cluster.local
+    port: 6379
+    auth:
+      enabled: true
+      secret: gitlab-redis-password
+      key: password
+
+  appConfig:
+    backups:
+      bucket: gitlab-backups
+      tmpBucket: tmp
+    object_store:
+      enabled: true
+      connection:
+        secret: gitlab-object-storage
+        key: connection
+    lfs:
+      bucket: git-lfs
+    artifacts:
+      bucket: gitlab-artifacts
+    uploads:
+      bucket: gitlab-uploads
+    packages:
+      bucket: gitlab-packages
+
+  registry:
+    bucket: registry
+
+
+nginx-ingress:
+  enabled: false
+
+certmanager-issuer:
+  email: test@gaja.com
+
+gitlab:
+  toolbox:
+    backups:
+      objectStorage:
+        config:
+          secret: gitlab-backup-s3cfg
+          key: config
+
+registry:
+  enabled: true
+  storage:
+    secret: gitlab-registry-storage
+    key: config

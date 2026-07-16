@@ -1,0 +1,85 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name:  fake-app-deployment-prod
+  namespace: namespace-test-side-a
+  labels:
+    app:  fake-app-deployment-prod
+spec:
+  serviceAccount: rbac-service-account
+  selector:
+    matchLabels:
+      app: fake-app-deployment-prod
+  replicas: 3
+  strategy:
+    rollingUpdate:
+      maxSurge: 2
+      maxUnavailable: 1
+    type: RollingUpdate
+  template:
+    metadata:
+      labels:
+        app:  fake-app-deployment-prod
+    spec:
+      containers:
+      - name:  fake-app-pod
+        image:  fakeappimage:latest
+        resources:
+          requests:
+            cpu: 100m
+            memory: 100Mi
+          limits:
+            cpu: 10-m
+            memory: 100Mi
+        livenessProbe:
+          tcpSocket:
+            port: 80
+          initialDelaySeconds: 5
+          timeoutSeconds: 5
+          successThreshold: 1
+          failureThreshold: 3
+          periodSeconds: 10
+        readinessProbe:
+          httpGet:
+            path: /_status/healthz
+            port: 80
+          initialDelaySeconds: 5
+          timeoutSeconds: 2
+          successThreshold: 1
+          failureThreshold: 3
+          periodSeconds: 10
+        env:
+        - name: HOSTNAME
+          valueFrom:
+            configMapKeyRef:
+              name: base-configmap
+              key: HOSTNAME
+        ports:
+        - containerPort:  80
+          name:  http
+        volumeMounts:
+        - name: nfs
+          mountPath: /mnt/storage
+      volumes:
+        - name: nfs
+          hostPath:
+            path: /mnt/nfs/base/app/v1
+      restartPolicy: Always
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: fake-app-svc
+  namespace: namespace-test-side-a
+spec:
+  selector:
+    app: fake-app-deployment-prod
+  type: LoadBalancer
+  ports:
+  - name: fake-app-deployment-prod-ports
+    protocol: TCP
+    port: 1253
+    targetPort: 80
+    # If you set the `spec.type` field to `NodePort` and you want a specific port number,
+    # you can specify a value in the `spec.ports[*].nodePort` field.
+    nodePort: 9238

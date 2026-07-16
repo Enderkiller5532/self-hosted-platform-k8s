@@ -1,0 +1,29 @@
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: rbac-service-account-bind-role-to-a
+  namespace: namespace-test-side-b
+subjects:
+  - kind: ServiceAccount
+    name: rbac-service-account
+    apiGroup: ""
+    namespace: namespace-test-side-a
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: from-a-to-b
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: rbac-service-account-bind-role-to-b
+  namespace: namespace-test-side-a
+subjects:
+  - kind: ServiceAccount
+    name: rbac-service-account
+    apiGroup: ""
+    namespace: namespace-test-side-b
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: from-b-to-a

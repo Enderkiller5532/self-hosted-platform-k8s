@@ -1,0 +1,21 @@
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: jenkins-alerts
+  namespace: monitoring
+  labels:
+    release: prometheus
+spec:
+  groups:
+    - name: jenkins.rules
+      rules:
+        - alert: JenkinsBuildFailure
+          expr: default_jenkins_builds_last_build_result_ordinal >= 2
+          for: 1m
+          labels:
+            severity: critical
+            namespace: jenkins
+            service: ci-cd
+          annotations:
+            summary: "Jenkins build failed"
+            description: 'Job {{ $labels.jenkins_job }} last build result ordinal is {{ $value }} (2=FAILURE, 3=NOT_BUILT, 4=ABORTED).'

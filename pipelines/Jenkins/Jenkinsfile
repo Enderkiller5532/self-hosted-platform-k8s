@@ -1,0 +1,181 @@
+def telegramSend(Map args) {
+    def botToken = args.botToken?.toString()?.trim()
+    def chatId = args.chatId?.toString()?.trim()
+    def message = (args.message ?: '').toString()
+    def notifyEvent = args.get('notifyEvent', true)
+
+    if (!botToken || !chatId) {
+        echo 'Telegram credentials are not configured; skipping notification.'
+        return
+    }
+
+    def safeMessage = message.replace('\r', ' ').replace('\n', ' ')
+    def escapedBotToken = botToken.replace("'", "'\\''")
+    def escapedChatId = chatId.replace("'", "'\\''")
+    def escapedMessage = safeMessage.replace("'", "'\\''")
+
+    sh """
+        set -e
+        export TELEGRAM_BOT_TOKEN='${escapedBotToken}'
+        export TELEGRAM_CHAT_ID='${escapedChatId}'
+        export TELEGRAM_MESSAGE='${escapedMessage}'
+
+        if [ -z "\$TELEGRAM_BOT_TOKEN" ] || [ -z "\$TELEGRAM_CHAT_ID" ]; then
+            echo 'Telegram credentials are missing; skipping notification.'
+            exit 0
+        fi
+
+        curl -sS -X POST "https://api.telegram.org/bot\$TELEGRAM_BOT_TOKEN/sendMessage" \
+            --data-urlencode "chat_id=\$TELEGRAM_CHAT_ID" \
+            --data-urlencode "text=\$TELEGRAM_MESSAGE" \
+            ${notifyEvent ? '' : '--data-urlencode "disable_notification=true"'}
+    """
+}
+
+def sendAlertToAlertmanager(String status, String message, String buildNumber, String gitBranch, String alertmanagerUrl) {
+    try {
+        def severity = (status == 'success') ? 'info' : 'critical'
+        def payload = """
+        {
+          "alerts": [
+            {
+              "status": "${status}",
+              "labels": {
+                "alertname": "JenkinsBuildStatus",
+                "severity": "${severity}",
+                "instance": "jenkins"
+              },
+              "annotations": {
+                "summary": "${message}",
+                "description": "Jenkins Build ${buildNumber} on branch ${gitBranch}"
+              }
+            }
+          ]
+        }
+        """
+        sh """
+            curl -sS -X POST \\
+                -H "Content-Type: application/json" \\
+                -d '${payload}' \\
+                '${alertmanagerUrl}'
+        """
+    } catch (Exception e) {
+        echo "Failed to send alert to Alertmanager: ${e.message}"
+    }
+}
+
+pipeline {
+    agent {
+        kubernetes {
+            yaml 'buld-agent.yaml'
+        }
+    }
+
+    environment {
+        APP_NAME = 'test'
+        REGISTRY = 'nexus.internal:8082'
+        TELEGRAM_BOT_TOKEN = credentials('telegram-bot-token')
+        TELEGRAM_CHAT_ID = credentials('telegram-chat-id')
+        ALERTMANAGER_URL = 'http://prometheus-kube-prometheus-alertmanager.monitoring.svc.cluster.local:9093/api/v1/alerts'
+        GIT_BRANCH = 'unknown'
+    }
+
+    stages {
+        stage('Checkout') {
+            steps {
+                script {
+                    env.GIT_BRANCH = env.GIT_BRANCH ?: 'unknown'
+                    if (!env.GIT_BRANCH || env.GIT_BRANCH == 'unknown') {
+                        echo 'No Git branch detected; continuing with placeholder value.'
+                    }
+                }
+                echo 'Skipping checkout — no SCM configured yet, testing locally'
+            }
+        }
+
+        stage('Build Docker Image') {
+            steps {
+                container('builder') {
+                    sh 'echo "TEST MODE: skipping real buildah build — no repo checked out yet"'
+                }
+            }
+        }
+
+        stage('Docker Push') {
+            steps {
+                container('builder') {
+                    sh 'echo "TEST MODE: skipping real push"'
+                    
+                }
+            }
+        }
+
+        stage('Update deployment manifest') {
+            steps {
+                container('builder') {
+                    sh 'echo "TEST MODE: skipping manifest update"'
+                }
+            }
+        }
+
+        stage('Deploy to Staging') {
+            steps {
+                container('kubectl') {
+                    sh '''
+                        echo "TEST MODE: verifying kubectl access"
+                        kubectl version --client
+                        kubectl get nodes
+                    '''
+                }
+            }
+        }
+    }
+
+    post {
+        always {
+            script {
+                telegramSend(
+                    botToken: env.TELEGRAM_BOT_TOKEN,
+                    chatId: env.TELEGRAM_CHAT_ID,
+                    message: "Build <${env.BUILD_NUMBER}> on ${env.GIT_BRANCH} completed.",
+                    notifyEvent: true
+                )
+            }
+        }
+
+        success {
+            script {
+                telegramSend(
+                    botToken: env.TELEGRAM_BOT_TOKEN,
+                    chatId: env.TELEGRAM_CHAT_ID,
+                    message: "Build <${env.BUILD_NUMBER}> on ${env.GIT_BRANCH} completed successfully! View details: ${env.BUILD_URL}",
+                    notifyEvent: true
+                )
+                sendAlertToAlertmanager('success', 'Build succeeded', env.BUILD_NUMBER, env.GIT_BRANCH, env.ALERTMANAGER_URL)
+            }
+        }
+
+        failure {
+            script {
+                telegramSend(
+                    botToken: env.TELEGRAM_BOT_TOKEN,
+                    chatId: env.TELEGRAM_CHAT_ID,
+                    message: "Build <${env.BUILD_NUMBER}> on ${env.GIT_BRANCH} FAILED! View details: ${env.BUILD_URL}",
+                    notifyEvent: true
+                )
+                sendAlertToAlertmanager('failure', 'Build failed', env.BUILD_NUMBER, env.GIT_BRANCH, env.ALERTMANAGER_URL)
+            }
+        }
+
+        unstable {
+            script {
+                telegramSend(
+                    botToken: env.TELEGRAM_BOT_TOKEN,
+                    chatId: env.TELEGRAM_CHAT_ID,
+                    message: "Build <${env.BUILD_NUMBER}> on ${env.GIT_BRANCH} is UNSTABLE. View details: ${env.BUILD_URL}",
+                    notifyEvent: true
+                )
+            }
+        }
+    }
+}

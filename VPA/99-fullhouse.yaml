@@ -1,0 +1,81 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: vpa-test-app
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: vpa-test-app
+  template:
+    metadata:
+      labels:
+        app: vpa-test-app
+    spec:
+      containers:
+      - name: nginx
+        image: nginx:stable-bookworm
+        resources:
+          requests:
+            cpu: "100m"
+            memory: "128Mi"
+          limits:
+            cpu: "2000m"
+            memory: "2Gi"
+---
+apiVersion: autoscaling.k8s.io/v1
+kind: VerticalPodAutoscaler
+metadata:
+  name: vpa-test-app-vpa
+  namespace: default
+spec:
+  targetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: vpa-test-app
+  updatePolicy:
+    updateMode: "InPlaceOrRecreate"
+  resourcePolicy:
+    containerPolicies:
+      - containerName: "*"
+        minAllowed:
+          cpu: "100m"
+          memory: "128Mi"
+        maxAllowed:
+          cpu: "2000m"
+          memory: "4Gi"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: vpa-test-app
+spec:
+  selector:
+    app: vpa-test-app
+  ports:
+  - port: 80
+    name: http
+    targetPort: 80
+  type: ClusterIP
+  sessionAffinity: None
+  sessionAffinityConfig:
+    clientIP:
+      timeoutSeconds: 10800
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: vpa-test-app-ingress
+spec:
+  ingressClassName: nginx
+  rules:
+  - host: vpa.cluster.local
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: vpa-test-app
+            port:
+              number: 80

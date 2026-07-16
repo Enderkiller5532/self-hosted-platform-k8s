@@ -1,0 +1,92 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  namespace: monitoring
+  name: monitoring
+  labels:
+    app.kubernetes.io/name: grafana.local
+spec:
+  ingressClassName: nginx
+  rules:
+  # 1. Grafana
+  - host: grafana.cluster.local
+    http:
+      paths:
+      - pathType: Prefix
+        path: "/"
+        backend:
+          service:
+            name: prometheus-grafana
+            port: 
+              number: 80
+
+  # 2. Thanos Query
+  - host: thanos.cluster.local
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: thanos-query
+            port:
+              number: 9090
+
+  # 3. Thanos Query Frontend
+  - host: thanos-query-frontend.cluster.local
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: thanos-query-frontend
+            port:
+              number: 9090
+
+  # 4. Thanos Bucket Web
+  - host: thanos-bucketweb.cluster.local
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: thanos-bucketweb
+            port:
+              number: 8080
+
+  # 5. MinIO API
+  - host: thanos-minio.cluster.local
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: thanos-minio
+            port:
+              number: 9000
+
+  # 6. alert manager
+  - host: alertmanager.cluster.local
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: prometheus-kube-prometheus-alertmanager
+            port:
+              number: 8080
+# 7 prmitei
+  - host: prometheus.cluster.local
+    http:
+      paths:
+      - backend:
+          service:
+            name: prometheus-kube-prometheus-prometheus
+            port:
+              number: 9093
+        path: /
+        pathType: Prefix

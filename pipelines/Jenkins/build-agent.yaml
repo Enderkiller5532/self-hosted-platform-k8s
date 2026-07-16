@@ -1,0 +1,59 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: "builder"
+  namespace: jenkins
+  labels:
+    app: "builder"
+spec:
+  serviceAccountName: jenkins-builder
+  containers:
+  - name: builder
+    image: quay.io/buildah/stable:latest
+    command: ["/bin/cat"]
+    tty: true
+    env:
+      - name: HOME
+        value: /root
+      - name: STORAGE_DRIVER
+        value: overlay
+    securityContext:
+      privileged: true
+    resources:
+      limits:
+        cpu: "1"
+        memory: 2Gi
+      requests:
+        cpu: 500m
+        memory: 1Gi
+    volumeMounts:
+      - name: kubeconfig-volume
+        mountPath: /root/.kube/config
+        subPath: config
+      - name: containers-storage
+        mountPath: /var/lib/containers
+  - name: kubectl
+    image: bitnami/kubectl:1.29
+    command: ["/bin/cat"]
+    tty: true
+    resources:
+      limits:
+        cpu: 500m
+        memory: 500Mi
+      requests:
+        cpu: 250m
+        memory: 256Mi
+    volumeMounts:
+      - name: kubeconfig-volume
+        mountPath: /root/.kube/config
+        subPath: config
+
+  restartPolicy: Never
+
+  volumes:
+  - name: kubeconfig-volume
+    secret:
+      secretName: my-kubeconfig-secret
+  - name: containers-storage
+    emptyDir:
+      sizeLimit: 5Gi

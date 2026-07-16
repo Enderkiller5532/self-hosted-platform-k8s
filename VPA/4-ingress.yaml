@@ -1,0 +1,17 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: vpa-test-app-ingress
+spec:
+  ingressClassName: nginx
+  rules:
+  - host: vpa.cluster.local
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: vpa-test-app
+            port:
+              number: 80

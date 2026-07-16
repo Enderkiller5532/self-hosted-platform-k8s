@@ -1,0 +1,68 @@
+mode: deployment
+replicaCount: 1
+
+image:
+  repository: otel/opentelemetry-collector-contrib
+  tag: "0.113.0"
+  pullPolicy: IfNotPresent
+
+resources:
+  requests:
+    cpu: 50m
+    memory: 64Mi
+  limits:
+    cpu: 200m
+    memory: 256Mi
+
+ports:
+  otlp:
+    enabled: true
+    containerPort: 4317
+    servicePort: 4317
+    protocol: TCP
+  otlp-http:
+    enabled: true
+    containerPort: 4318
+    servicePort: 4318
+    protocol: TCP
+
+config:
+  receivers:
+    otlp:
+      protocols:
+        grpc:
+          endpoint: IP_PLACEHOLDER:4317
+        http:
+          endpoint: IP_PLACEHOLDER:4318
+
+  processors:
+    batch:
+      timeout: 10s
+      send_batch_size: 1024
+    memory_limiter:
+      check_interval: 5s
+      limit_mib: 200
+      spike_limit_mib: 50
+
+  exporters:
+    prometheusremotewrite:
+      endpoint: "http://thanos-receive.monitoring.svc:19291/api/v1/receive"
+      resource_to_telemetry_conversion:
+        enabled: true
+    otlp/tempo:
+      endpoint: tempo.monitoring.svc.cluster.local:4317
+      tls:
+        insecure: true
+    debug:
+      verbosity: basic
+
+  service:
+    pipelines:
+      metrics:
+        receivers: [otlp]
+        processors: [memory_limiter, batch]
+        exporters: [prometheusremotewrite, debug]
+      traces:
+        receivers: [otlp]
+        processors: [memory_limiter, batch]
+        exporters: [otlp/tempo]

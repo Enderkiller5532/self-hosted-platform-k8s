@@ -1,0 +1,71 @@
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: pv-web-site
+spec:
+  capacity:
+    storage: 1Gi
+  volumeMode: Filesystem
+  accessModes:
+    - ReadWriteOnce
+  persistentVolumeReclaimPolicy: Recycle
+  mountOptions:
+    - hard
+    - nfsvers=4.1
+  nfs:
+    path: /mnt/data/nginx/www/
+    server: YOUR_NFS_SERVER ## make sure to replace this with your NFS server IP address or hostname in all the PersistentVolume definitions below
+---
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: pv-nginx-settings
+spec:
+  capacity:
+    storage: 1Gi
+  volumeMode: Filesystem
+  accessModes:
+    - ReadWriteOnce
+  persistentVolumeReclaimPolicy: Recycle
+  mountOptions:
+    - hard
+    - nfsvers=4.1
+  nfs:
+    path: /mnt/data/nginx/conf.d/
+    server: IP_PLACEHOLDER
+---
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: pv-nginx-sites
+spec:
+  capacity:
+    storage: 1Gi
+  volumeMode: Filesystem
+  accessModes:
+    - ReadWriteOnce
+  persistentVolumeReclaimPolicy: Recycle
+  mountOptions:
+    - hard
+    - nfsvers=4.1
+  nfs:
+    path: /mnt/data/nginx/sites/
+    server: IP_PLACEHOLDER
+---
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: pv-nginx-logs
+spec:
+  capacity:
+    storage: 1Gi
+  volumeMode: Filesystem
+  accessModes:
+    - ReadWriteOnce
+  persistentVolumeReclaimPolicy: Recycle
+  mountOptions:
+    - hard
+    - nfsvers=4.1
+  nfs:
+    path: /mnt/data/nginx/logs/
+    server: IP_PLACEHOLDER

@@ -1,0 +1,63 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: nginx-deployment
+  labels:
+    app: test-pods
+spec:
+  selector:
+    matchLabels:
+      app: test-pods
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 1
+  template:
+    metadata:
+      labels:
+        app: test-pods
+    spec:
+      containers:
+      - name: test-pods
+        image: nginx:stable-bookworm
+        resources:
+          requests:
+            cpu: "100m"
+            memory: "55Mi" 
+          limits:
+            cpu: "200m"
+            memory: "128Mi"
+        env:
+        - name: test-for-env
+          valueFrom:
+            secretKeyRef:
+              name: testforenv
+              key: ENVTEST
+        ports:
+        - containerPort: 80
+          name: nginx-http
+        - containerPort: 443
+          name: nginx-https
+        volumeMounts:
+        - name: web-site
+          mountPath: /var/www/html/
+        - name: nginx-settings
+          mountPath: /etc/nginx/conf.d/
+        - name: nginx-sites
+          mountPath: /etc/nginx/sites-enabled/
+        - name: nginx-logs
+          mountPath: /var/log/nginx/
+      volumes:
+      - name: web-site
+        persistentVolumeClaim:
+          claimName: nfs-pvc-web
+      - name: nginx-settings
+        persistentVolumeClaim:
+          claimName: nfs-pvc-configs
+      - name: nginx-sites
+        persistentVolumeClaim:
+          claimName: nfs-pvc-sites
+      - name: nginx-logs
+        persistentVolumeClaim:
+          claimName: nfs-pvc-logs
