@@ -6,7 +6,7 @@ This directory is intended for WordPress deployment examples in the Kubernetes e
 helm repo add bitnami https://charts.bitnami.com/bitnami
 ```
 ```bash
-helm install wordpress bitnami/wordpress --version 32.1.12 -n --create-namespace
+helm install wordpress bitnami/wordpress --version 32.1.12 -n --create-namespace -f values.yaml
 ```
 
 

@@ -1,0 +1,281 @@
+## ============================================================
+## Vaultwarden Production Values
+## helm repo add vaultwarden https://guerzon.github.io/vaultwarden
+## ============================================================
+
+## @section Database
+database:
+  type: postgresql                          # CHANGEHERE: sqlite / mysql / postgresql
+  wal: true
+  url: "CHANGEHERE"                         # CHANGEHERE: postgresql://user:pass@host:port/db
+  # existingSecret: "CHANGEHERE"            # CHANGEHERE: альтернатива url — secret с ключом database-url
+  existingSecretKey: "database-url"
+  maxConnections: 10
+  minConnections: 2
+  idleTimeout: 600
+  retries: 15
+
+## ============================================================
+## VAULTWARDEN APPLICATION
+## ============================================================
+vaultwarden:
+  domain: "CHANGEHERE"                      # CHANGEHERE: https://vault.example.com
+  allowSignups: false                       # CHANGEHERE: false после создания аккаунтов
+  signupDomains: []                         # CHANGEHERE: ["example.com"] если нужен whitelist
+  verifySignup: true                        # CHANGEHERE: true — требовать подтверждение email
+  requireEmail: false                       # CHANGEHERE: true — запретить логин без подтверждённого email
+  emailAttempts: 3
+  emailTokenExpiration: 600
+  allowInvitation: true
+  invitationExpiration: 120
+  passwordHintsAllowed: true
+  showPasswordHint: false
+  defaultInviteName: ""           # CHANGEHERE: name of organization for new users, empty to disable
+  enableWebVault: true
+  enableSends: true
+  orgCreationUsers: "CHANGEHERE"            # CHANGEHERE: 'all' / 'none' / 'user1@example.com,user2@example.com'
+  attachmentLimitOrg: ""                    # CHANGEHERE: limit in KB for organization, empty to disable
+  attachmentLimitUser: ""                   # CHANGEHERE: limit in KB for user, empty to disable
+  sendLimitUser: ""                         # CHANGEHERE: limit in kv for user, empty to disable
+  hibpApiKey: "CHANGEHERE"                  # CHANGEHERE: HaveIBeenPwned API keys
+  autoDeleteDays: ""                        # CHANGEHERE: recycle bin auto delete days, empty to disable
+  orgEvents: false
+  orgEventsRetention: ""
+  emailChangeAllowed: true
+  dnsPreferIPv6: false
+  extraEnv: {}
+
+  ## Admin Panel
+  admin:
+    enabled: true
+    disableAdminToken: false
+    token: "CHANGEHERE"                     # CHANGEHERE: generate with openssl rand -base64 48
+    existingSecret: ""                      # CHANGEHERE: or secret with key admin-token
+
+  ## Emergency Access
+  emergency:
+    enabled: true
+    reminder: "0 3 * * * *"
+    timeout: "0 7 * * * *"
+
+  ## SMTP — обязательно для прода
+  smtp:
+    enabled: true
+    host: "CHANGEHERE"                      # CHANGEHERE: smtp.example.com
+    from: "CHANGEHERE"                      # CHANGEHERE: vaultwarden@example.com
+    fromName: "CHANGEHERE"                  # CHANGEHERE: Vaultwarden
+    security: starttls                      # CHANGEHERE: starttls / force_tls / off
+    port: "587"                             # CHANGEHERE: 465 для force_tls, 587 для starttls
+    authMechanism: Plain
+    heloName: ""
+    timeout: 15
+    invalidHostname: false
+    invalidCertificate: false
+    user: "CHANGEHERE"                      # CHANGEHERE: SMTP username
+    password: "CHANGEHERE"                  # CHANGEHERE: SMTP password
+    existingSecret: ""                      # CHANGEHERE: or secret with keys smtp-user, smtp-password
+    embedImages: true
+
+  ## Yubico OTP
+  yubico:
+    enabled: false
+    server: ""
+    clientId: ""
+    secretKey: ""
+    existingSecret: ""
+
+  ## Logging
+  log:
+    file: "/var/log/vaultwarden.log"           # CHANGEHERE: path inside container or leave empty for stdout
+    level: "warn"                              # CHANGEHERE: trace / debug / info / warn / error / off
+    timeFormat: "%Y-%m-%d %H:%M:%S %Z"
+
+  ## Icons
+  icons:
+    service: internal
+    disableDownload: false
+    cache: "2592000"
+    cacheFailed: "259200"
+    redirectCode: 302
+
+  ## Push Notifications (for mobile apps)
+  # push:
+  #   enabled: true
+  #   installationId: "CHANGEHERE"            # CHANGEHERE: получить на https://bitwarden.com/host/
+  #   installationKey: "CHANGEHERE"           # CHANGEHERE: получить на https://bitwarden.com/host/
+  #   relayUri: "https://push.bitwarden.com"
+  #   identityUri: "https://identity.bitwarden.com"
+  #   existingSecret: ""                      # CHANGEHERE: or secret with keys push-id, push-key
+
+  ## SSO (OIDC)
+  sso:
+    enabled: false
+    only: false
+    signupsMatchEmail: true
+    allowUnknownEmailVerification: false
+    authority: "CHANGEHERE"                 # CHANGEHERE: https://auth.example.com/realms/my-realm
+    scopes: "email profile"
+    authorizeExtraParams: ""
+    pkce: true
+    audienceTrusted: ""
+    clientId: "CHANGEHERE"                  # CHANGEHERE
+    clientSecret: "CHANGEHERE"              # CHANGEHERE
+    existingSecret: ""                      # CHANGEHERE: or secret with keys sso-client-id, sso-client-secret
+    masterPasswordPolicy: ""
+    authOnlyNotSession: false
+    clientCacheExpiration: 0
+    debugTokens: false
+    purgeSchedule: "0 20 0 * * *"
+
+## ============================================================
+## SERVICE
+## ============================================================
+service:
+  type: ClusterIP
+  httpPort: 80
+  externalTrafficPolicy: Cluster
+  loadBalancerIP: ""
+  nodePorts:
+    http: 0
+
+## ============================================================
+## INGRESS
+## ============================================================
+ingress:
+  enabled: true
+  className: "nginx"                                       # CHANGEHERE: ingress class (nginx in our case)
+  host: "vaultwarden.cluster.local"                        # CHANGEHERE: vault.example.com
+  annotations:
+    cert-manager.io/cluster-issuer: "CHANGEHERE"           # CHANGEHERE
+    nginx.ingress.kubernetes.io/proxy-body-size: "128m"
+    nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
+  tls:
+    - secretName: vaultwarden-tls                          # CHANGEHERE
+      hosts:
+        - "vaultwarden.cluster.local"                      # CHANGEHERE: vault.example.com
+
+## Traefik IngressRoute (если используете Traefik вместо Ingress)
+# ingressRoute:
+#   enabled: false
+#   newCRD: false
+#   host: ""
+#   entrypoints:
+#     - websecure
+#   middlewares: []
+#   tls: {}
+
+## ============================================================
+## PERSISTENCE
+## ============================================================
+persistence:
+  enabled: true
+  size: "10Gi"                              # CHANGEHERE
+  accessMode: ReadWriteOnce
+  storageClass: "local-path"                          # CHANGEHERE: our storage class
+  existingClaim: ""
+  annotations: {}
+  labels: {}
+
+## Дополнительные volume (не совместимо с persistence.enabled: true)
+customVolume: {}
+
+## Дополнительные тома
+additionalVolumes: []
+additionalVolumeMounts: []
+
+## ============================================================
+## IMAGE
+## ============================================================
+image:
+  pullPolicy: IfNotPresent
+  repository: vaultwarden/server
+  tag: "1.33.2-alpine"                      # CHANGEHERE
+
+imagePullSecrets: []
+nameOverride: ""
+fullnameOverride: ""
+
+## ============================================================
+## DEPLOYMENT
+## ============================================================
+replicaCount: 1
+revisionHistoryLimit: 10
+
+serviceAccount:
+  create: true
+  annotations: {}
+  name: ""
+  automountServiceAccountToken: false
+
+automountServiceAccountToken: false
+
+podAnnotations: {}
+podLabels: {}
+deploymentAnnotations: {}
+
+## Probes
+probes:
+  liveness:
+    httpGet:
+      path: /alive
+      port: http
+    initialDelaySeconds: 30
+    periodSeconds: 30
+    timeoutSeconds: 5
+    failureThreshold: 3
+    successThreshold: 1
+  readiness:
+    httpGet:
+      path: /
+      port: http
+    initialDelaySeconds: 10
+    periodSeconds: 15
+    timeoutSeconds: 5
+    failureThreshold: 3
+    successThreshold: 1
+  startup:
+    httpGet:
+      path: /
+      port: http
+    initialDelaySeconds: 5
+    periodSeconds: 10
+    timeoutSeconds: 5
+    failureThreshold: 30
+    successThreshold: 1
+
+initContainers: []
+sidecars: []
+
+## Security Context
+podSecurityContext:
+  fsGroup: 65534
+
+securityContext:
+  runAsUser: 65534
+  runAsGroup: 65534
+  readOnlyRootFilesystem: true
+  allowPrivilegeEscalation: false
+  capabilities:
+    drop: ["ALL"]
+
+## Deployment Strategy
+strategy:
+  type: Recreate
+
+## ============================================================
+## RESOURCES
+## ============================================================
+resources:
+  requests:
+    cpu: "100m"                             # CHANGEHERE
+    memory: "256Mi"                         # CHANGEHERE
+  limits:
+    cpu: "500m"                             # CHANGEHERE
+    memory: "512Mi"                         # CHANGEHERE
+
+## ============================================================
+## SCHEDULING
+## ============================================================
+nodeSelector: {}
+tolerations: []
+affinity: {}
