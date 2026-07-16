@@ -275,7 +275,7 @@ helm upgrade vaultwarden vaultwarden/vaultwarden \
 ## Problems you may have
 ### Admin token
 
-1) If not working try wathch is pod env ADMIN_TOKEN present.
+1) If not working try watch is pod env ADMIN_TOKEN present.
 2) edit statful set to use env : admin-config=vaultwarden-admin-token and key must be 'admin-token'='TOKEN' (not 'ADMIN_TOKEN'='TOKEN')
 ---
 
