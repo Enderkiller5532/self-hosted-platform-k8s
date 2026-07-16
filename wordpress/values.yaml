@@ -1,0 +1,483 @@
+## ============================================================
+## WordPress + MariaDB Production Values
+## Bitnami Helm Chart
+## ============================================================
+
+## @section Global parameters
+global:
+  imageRegistry: ""
+  imagePullSecrets: []
+  defaultStorageClass: ""
+  security:
+    allowInsecureImages: false
+  compatibility:
+    openshift:
+      adaptSecurityContext: auto
+  defaultFips: restricted
+
+## @section Common parameters
+kubeVersion: ""
+nameOverride: ""
+fullnameOverride: ""
+commonLabels: {}
+commonAnnotations: {}
+clusterDomain: cluster.local
+extraDeploy: []
+usePasswordFiles: true
+
+diagnosticMode:
+  enabled: false
+  command:
+    - sleep
+  args:
+    - infinity
+
+## @section WordPress Image
+image:
+  registry: registry-1.docker.io
+  repository: bitnami/wordpress
+  tag: "6.7.2-debian-12-r3"             # CHANGEHERE: фиксируйте версию, не latest
+  digest: ""
+  pullPolicy: IfNotPresent
+  pullSecrets: []
+  debug: false
+
+## ============================================================
+## WORDPRESS CREDENTIALS — CHANGE THESE
+## ============================================================
+wordpressUsername: "CHANGEHERE"          # CHANGEHERE: admin username
+wordpressPassword: "CHANGEHERE"          # CHANGEHERE: admin password (минимум 10 символов)
+wordpressEmail: "CHANGEHERE"             # CHANGEHERE: admin email
+wordpressFirstName: "CHANGEHERE"         # CHANGEHERE
+wordpressLastName: "CHANGEHERE"          # CHANGEHERE
+wordpressBlogName: "CHANGEHERE"          # CHANGEHERE: название сайта
+wordpressTablePrefix: wp_
+wordpressScheme: https                   # https в проде
+wordpressHost: "CHANGEHERE"              # CHANGEHERE: example.com
+wordpressSkipInstall: false
+
+existingSecret: ""                       # если задан — wordpressPassword игнорируется
+wordpressExtraConfigContent: ""
+wordpressConfiguration: ""
+existingWordPressConfigurationSecret: ""
+wordpressConfigureCache: false
+wordpressPlugins: none
+apacheConfiguration: ""
+existingApacheConfigurationConfigMap: ""
+customPostInitScripts: {}
+
+## SMTP
+smtpHost: "CHANGEHERE"                  # CHANGEHERE: smtp.example.com
+smtpPort: "587"                         # CHANGEHERE
+smtpUser: "CHANGEHERE"                  # CHANGEHERE
+smtpPassword: "CHANGEHERE"              # CHANGEHERE
+smtpProtocol: "tls"                     # CHANGEHERE: tls / ssl / ''
+smtpFromEmail: "CHANGEHERE"             # CHANGEHERE
+smtpFromName: "CHANGEHERE"              # CHANGEHERE
+smtpExistingSecret: ""
+
+allowEmptyPassword: false               # false в проде
+allowOverrideNone: false
+overrideDatabaseSettings: false
+htaccessPersistenceEnabled: false
+customHTAccessCM: ""
+
+command: []
+args: []
+extraEnvVars: []
+extraEnvVarsCM: ""
+extraEnvVarsSecret: ""
+
+## @section Multisite
+multisite:
+  enable: false
+  host: ""
+  networkType: subdomain
+  enableNipIoRedirect: false
+
+## ============================================================
+## DEPLOYMENT
+## ============================================================
+replicaCount: 2                          # CHANGEHERE: 2+ для HA (требует RWX PVC)
+updateStrategy:
+  type: RollingUpdate
+schedulerName: ""
+runtimeClassName: ""
+terminationGracePeriodSeconds: ""
+topologySpreadConstraints: []
+priorityClassName: ""
+automountServiceAccountToken: false
+hostAliases:
+  - ip: "127.0.0.1"
+    hostnames:
+      - "status.localhost"
+extraVolumes: []
+extraVolumeMounts: []
+sidecars: []
+initContainers: []
+
+podLabels: {}
+podAnnotations: {}
+podAffinityPreset: ""
+podAntiAffinityPreset: soft
+nodeAffinityPreset:
+  type: ""
+  key: ""
+  values: []
+affinity: {}
+nodeSelector: {}
+tolerations: []
+
+## ============================================================
+## RESOURCES
+## ============================================================
+resourcesPreset: ""
+resources:
+  requests:
+    cpu: "250m"                         # CHANGEHERE: под вашу нагрузку
+    memory: "512Mi"                     # CHANGEHERE
+  limits:
+    cpu: "2000m"                        # CHANGEHERE
+    memory: "1Gi"                       # CHANGEHERE
+
+fips:
+  openssl: ""
+
+containerPorts:
+  http: 8080
+  https: 8443
+extraContainerPorts: []
+
+## Security Context
+podSecurityContext:
+  enabled: true
+  fsGroupChangePolicy: Always
+  sysctls: []
+  supplementalGroups: []
+  fsGroup: 1001
+containerSecurityContext:
+  enabled: true
+  seLinuxOptions: {}
+  runAsUser: 1001
+  runAsGroup: 1001
+  runAsNonRoot: true
+  privileged: false
+  readOnlyRootFilesystem: true
+  allowPrivilegeEscalation: false
+  capabilities:
+    drop: ["ALL"]
+  seccompProfile:
+    type: "RuntimeDefault"
+
+## Probes
+livenessProbe:
+  enabled: true
+  tcpSocket:
+    port: http
+  initialDelaySeconds: 120
+  periodSeconds: 10
+  timeoutSeconds: 5
+  failureThreshold: 6
+  successThreshold: 1
+
+readinessProbe:
+  enabled: true
+  httpGet:
+    path: /wp-login.php
+    port: http
+    scheme: HTTP
+    httpHeaders: []
+  initialDelaySeconds: 30
+  periodSeconds: 10
+  timeoutSeconds: 5
+  failureThreshold: 6
+  successThreshold: 1
+
+startupProbe:
+  enabled: true
+  httpGet:
+    path: /wp-login.php
+    port: http
+    scheme: HTTP
+    httpHeaders: []
+  initialDelaySeconds: 30
+  periodSeconds: 10
+  timeoutSeconds: 5
+  failureThreshold: 12
+  successThreshold: 1
+
+customLivenessProbe: {}
+customReadinessProbe: {}
+customStartupProbe: {}
+lifecycleHooks: {}
+
+## ============================================================
+## SERVICE & INGRESS
+## ============================================================
+service:
+  type: ClusterIP                        # CHANGEHERE: LoadBalancer / NodePort / ClusterIP
+  ports:
+    http: 80
+    https: 443
+  httpsTargetPort: https
+  nodePorts:
+    http: ""
+    https: ""
+  sessionAffinity: None
+  sessionAffinityConfig: {}
+  clusterIP: ""
+  loadBalancerIP: ""
+  loadBalancerSourceRanges: []
+  externalTrafficPolicy: Cluster
+  annotations: {}
+  extraPorts: []
+
+## HTTPRoute (Gateway API)
+httpRoute:
+  enabled: false
+  annotations: {}
+  labels: {}
+  parentRefs: []
+  hostnames:
+    - wordpress.local
+  matches:
+    - path:
+        type: PathPrefix
+        value: /
+  filters: []
+  extraRules: []
+
+## Primary Ingress
+ingress:
+  enabled: true                          # CHANGEHERE
+  pathType: ImplementationSpecific
+  apiVersion: ""
+  ingressClassName: "nginx"             # CHANGEHERE: ваш ingress class
+  hostname: "CHANGEHERE"                # CHANGEHERE: example.com
+  path: /
+  annotations:                           # CHANGEHERE: под ваш ingress-controller
+    cert-manager.io/cluster-issuer: "CHANGEHERE"
+    nginx.ingress.kubernetes.io/proxy-body-size: "64m"
+    nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
+  tls: true
+  tlsWwwPrefix: false
+  selfSigned: false
+  extraHosts: []
+  extraPaths: []
+  extraTls: []
+  secrets: []
+  extraRules: []
+
+## Secondary Ingress (для /wp-admin с отдельными правилами)
+secondaryIngress:
+  enabled: false
+  pathType: ImplementationSpecific
+  apiVersion: ""
+  ingressClassName: ""
+  hostname: wordpress.local
+  path: /
+  annotations: {}
+  tls: false
+  tlsWwwPrefix: false
+  selfSigned: false
+  extraHosts: []
+  extraPaths: []
+  extraTls: []
+  secrets: []
+  extraRules: []
+
+## ============================================================
+## PERSISTENCE
+## ============================================================
+persistence:
+  enabled: true
+  storageClass: ""                        # CHANGEHERE: ваш storage class
+  accessModes:
+    - ReadWriteOnce                       # CHANGEHERE: ReadWriteMany для replicaCount > 1
+  size: "20Gi"                            # CHANGEHERE: под ваши нужды
+  dataSource: {}
+  existingClaim: ""
+  selector: {}
+  annotations: {}
+
+volumePermissions:
+  enabled: false
+  image:
+    registry: registry-1.docker.io
+    repository: bitnami/os-shell
+    tag: latest
+    digest: ""
+    pullPolicy: IfNotPresent
+    pullSecrets: []
+  resourcesPreset: "nano"
+  resources: {}
+  fips:
+    openssl: ""
+  containerSecurityContext:
+    seLinuxOptions: {}
+    runAsUser: 0
+
+## @section Service Account
+serviceAccount:
+  create: true
+  name: ""
+  automountServiceAccountToken: false
+  annotations: {}
+
+## @section Pod Disruption Budget
+pdb:
+  create: true
+  minAvailable: "1"                       # CHANGEHERE: минимум 1 для HA с 2 репликами
+  maxUnavailable: ""
+
+## @section HPA (опционально)
+autoscaling:
+  enabled: false
+  minReplicas: 2
+  maxReplicas: 11
+  targetCPU: 70
+  targetMemory: 70
+
+## @section Metrics
+metrics:
+  enabled: true                           # CHANGEHERE: true для Prometheus
+  image:
+    registry: registry-1.docker.io
+    repository: bitnami/apache-exporter
+    tag: "1.0.5-debian-12-r2"            # CHANGEHERE: фиксируйте
+    digest: ""
+    pullPolicy: IfNotPresent
+    pullSecrets: []
+  containerPorts:
+    metrics: 9117
+  livenessProbe:
+    enabled: true
+    initialDelaySeconds: 15
+    periodSeconds: 10
+    timeoutSeconds: 5
+    failureThreshold: 3
+    successThreshold: 1
+  readinessProbe:
+    enabled: true
+    initialDelaySeconds: 5
+    periodSeconds: 10
+    timeoutSeconds: 3
+    failureThreshold: 3
+    successThreshold: 1
+  startupProbe:
+    enabled: false
+    initialDelaySeconds: 10
+    periodSeconds: 10
+    timeoutSeconds: 1
+    failureThreshold: 15
+    successThreshold: 1
+  customLivenessProbe: {}
+  customReadinessProbe: {}
+  customStartupProbe: {}
+  resourcesPreset: "nano"
+  resources: {}
+  podAnnotations: {}
+  fips:
+    openssl: ""
+    golang: restricted
+  containerSecurityContext:
+    enabled: true
+    seLinuxOptions: {}
+    runAsUser: 1001
+    runAsGroup: 1001
+    runAsNonRoot: true
+    privileged: false
+    readOnlyRootFilesystem: true
+    allowPrivilegeEscalation: false
+    capabilities:
+      drop: ["ALL"]
+    seccompProfile:
+      type: "RuntimeDefault"
+  service:
+    ports:
+      metrics: 9150
+    annotations:
+      prometheus.io/scrape: "true"
+      prometheus.io/port: "{{ .Values.metrics.containerPorts.metrics }}"
+  serviceMonitor:
+    enabled: true
+    namespace: ""
+    interval: "30s"
+    scrapeTimeout: ""
+    labels: {}
+    selector: {}
+    relabelings: []
+    metricRelabelings: []
+    honorLabels: false
+    jobLabel: ""
+
+## @section Network Policy
+networkPolicy:
+  enabled: true
+  allowExternal: true
+  allowExternalEgress: true
+  extraIngress: []
+  extraEgress: []
+  ingressNSMatchLabels: {}
+  ingressNSPodMatchLabels: {}
+
+## ============================================================
+## DATABASE: MariaDB (встроенная)
+## ============================================================
+mariadb:
+  enabled: true
+  architecture: standalone
+  auth:
+    rootPassword: "CHANGEHERE"            # CHANGEHERE: root пароль
+    database: bitnami_wordpress
+    username: bn_wordpress
+    password: "CHANGEHERE"                # CHANGEHERE: user пароль
+  primary:
+    persistence:
+      enabled: true
+      storageClass: ""                    # CHANGEHERE: ваш storage class
+      accessModes:
+        - ReadWriteOnce
+      size: "20Gi"                        # CHANGEHERE: под ваши нужды
+    resourcesPreset: ""
+    resources:
+      requests:
+        cpu: "250m"                       # CHANGEHERE
+        memory: "512Mi"                   # CHANGEHERE
+      limits:
+        cpu: "1000m"                      # CHANGEHERE
+        memory: "1Gi"                     # CHANGEHERE
+    fips:
+      openssl: ""
+
+## ============================================================
+## EXTERNAL DATABASE (mariadb.enabled: false)
+## ============================================================
+externalDatabase:
+  host: "CHANGEHERE"                      # CHANGEHERE
+  port: 3306
+  user: "CHANGEHERE"                      # CHANGEHERE
+  password: "CHANGEHERE"                  # CHANGEHERE
+  database: "CHANGEHERE"                  # CHANGEHERE
+  existingSecret: ""
+
+## ============================================================
+## MEMCACHED (опционально)
+## ============================================================
+memcached:
+  enabled: false
+  auth:
+    enabled: false
+    username: ""
+    password: ""
+    existingPasswordSecret: ""
+  service:
+    port: 11211
+  resourcesPreset: "nano"
+  resources: {}
+  fips:
+    openssl: ""
+
+externalCache:
+  host: localhost
+  port: 11211
